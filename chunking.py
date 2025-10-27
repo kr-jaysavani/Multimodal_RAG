@@ -12,6 +12,7 @@ def process_images_with_captions(raw_chunks, use_gemini=True):
     """
     import base64
     import os
+    from langchain_core.documents import Document
 
     import google.generativeai as genai
     from dotenv import load_dotenv
@@ -69,7 +70,7 @@ def process_images_with_captions(raw_chunks, use_gemini=True):
                         chunk.metadata.image_base64)
 
                     # Use Gemini model for image description
-                    model = genai.GenerativeModel("gemini-1.5-flash")
+                    model = genai.GenerativeModel("gemini-2.5-flash")
 
                     prompt = (
                         f"Generate a comprehensive and detailed description of this image from a technical document about Retrieval-Augmented Generation (RAG).\n\n"
@@ -104,10 +105,18 @@ def process_images_with_captions(raw_chunks, use_gemini=True):
 
             processed_images.append(image_data)
 
+    newprocessed_images = []
+    for item in processed_images:
+        document = Document(
+            page_content=item["content"], metadata={
+                "source": item["filename"], "type": item["content_type"], "base64_image": item["base64_image"], }
+        )
+        newprocessed_images.append(document)
+
     print(
         f"Processed {len(processed_images)} images with captions and descriptions")
     print(f"Errors encountered: {len(encountered_errors)}")
-    return processed_images, encountered_errors
+    return newprocessed_images, encountered_errors
 
 
 def process_tables_with_descriptions(raw_chunks, use_gemini=True, use_ollama=False):
@@ -118,6 +127,7 @@ def process_tables_with_descriptions(raw_chunks, use_gemini=True, use_ollama=Fal
     import requests
     from dotenv import load_dotenv
     from unstructured.documents.elements import Table
+    from langchain_core.documents import Document
 
     load_dotenv()
 
@@ -209,9 +219,16 @@ def process_tables_with_descriptions(raw_chunks, use_gemini=True, use_ollama=Fal
 
             processed_tables.append(table_data)
 
+    newprocessed_tables = []
+    for item in processed_tables:
+        document = Document(
+            page_content=item["content"], metadata={
+                "source": item["filename"], "type": item["content_type"]}
+        )
+        newprocessed_tables.append(document)
     print(f"Processed {len(processed_tables)} tables with descriptions")
     print(f"Errors encountered: {len(encountered_errors)}")
-    return processed_tables, encountered_errors
+    return newprocessed_tables, encountered_errors
 
 
 def create_semantic_chunks(chunks):
