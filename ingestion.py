@@ -10,6 +10,7 @@ from langchain.chains.combine_documents import create_stuff_documents_chain
 import base64
 from IPython.display import Image, display
 
+from langchain_core.documents import Document
 
 load_dotenv()
 QDRANT_URL = os.getenv("QDRANT_URL")
@@ -225,28 +226,61 @@ if __name__ == "__main__":
     )
 
     # Process a PDF document end-to-end
-    pdf_file_path = "files/2312.10997v5-1-7.pdf"
+    # pdf_file_path = "files/2312.10997v5-1-7.pdf"
+    # pdf_file_path = "files/2312.table.pdf"
+    pdf_file_path = "files/gpg-ii-sl.pdf"
+    doc_file_path = "SOP_ PS_Loan Payout_v1.1_18062025 (002).docx"
+
+    from unstructured.partition.docx import partition_docx
+
+    elements = partition_docx(
+        filename="files/SOP_ PS_Loan Payout_v1.1_18062025 (002).docx", include_page_breaks=True, infer_table_structure=True, strategy="hi_res",
+    )
+    # print(f"Extracted {len(elements)} elements from DOCX file")
+    print(elements)
+
+    from unstructured.chunking.title import chunk_by_title
+
+    max_characters = 2000,
+    #     min_chars_to_combine=500,
+    #     chars_before_new_chunk=1500,
+
+    chunks = chunk_by_title(elements,
+                            max_characters=2000,
+                            overlap=500
+                            )
+    print(chunks)
+    # print(f"Created {len(chunks)} chunks from DOCX file")
+    # print(f"First chunk: {chunks[0]}")
+    # print(f"last chunk: {chunks[-1]}")
+
+    new_chunks = []
+    for chunk in chunks:
+        doc = Document(
+            page_content=chunk.text,
+        )
+        new_chunks.append(doc)
 
     # # 1. Extract raw chunks
-    raw_chunks = partition_pdf(
-        filename=pdf_file_path,
-        strategy="hi_res",
-        infer_table_structure=True,
-        extract_image_block_types=["Image", "Figure", "Table"],
-        extract_image_block_to_payload=True,
-        chunking_strategy=None,
-    )
+    # raw_chunks = partition_pdf(
+    #     filename=pdf_file_path,
+    #     strategy="hi_res",
+    #     infer_table_structure=True,
+    #     extract_image_block_types=["Image", "Figure", "Table"],
+    #     extract_image_block_to_payload=True,
+    #     chunking_strategy=None,
+    # )
 
     # 2. Process images with captions
-    processed_images, image_errors = process_images_with_captions(raw_chunks)
-    print(f"Processed {len(processed_images)} images with captions")
-    print(f"Image Processing {processed_images[0]}")
+    # processed_images, image_errors = process_images_with_captions(raw_chunks)
+    # print(f"Processed {len(processed_images)} images with captions")
+    # print(f"Image Processing {processed_images[0]}")
 
     # 3. Process tables with descriptions
-    processed_tables, table_errors = process_tables_with_descriptions(
-        raw_chunks, use_gemini=True, use_ollama=False
-    )
-    print(f"Processed {len(processed_tables)} tables with descriptions")
+    # processed_tables, table_errors = process_tables_with_descriptions(
+    #     raw_chunks, use_gemini=True, use_ollama=False
+    # )
+    # print(f"Processed {len(processed_tables)} tables with descriptions")
     # print(f"Table Processing {processed_tables[0]}")
 
     # # 4. Partition the PDF into chunks
@@ -264,11 +298,18 @@ if __name__ == "__main__":
     # print(f"Created {len(semantic_chunks)} semantic text chunks")
     # print(f"Semantic Chunk Example: {semantic_chunks[0]}")
 
-    collection_name = "2312"
+    # all_chunks = processed_tables + semantic_chunks
+    # print(f"Total chunks extracted: {len(all_chunks)}")
+
+    # collection_name = "2312" // for image
+    # collection_name = "bajaj"  # for table
+    collection_name = "bajajsop"
     embeddings = MistralAIEmbeddings(model="mistral-embed")
     vector_store = QdrantVectorStore.from_documents(
-        documents=processed_images,
+        # documents=processed_images,
         # documents=processed_tables,
+        # documents=all_chunks,
+        documents=new_chunks,
         embedding=embeddings,
         url=QDRANT_URL,
         api_key=QDRANT_API_KEY,
@@ -315,7 +356,16 @@ rag_chain = create_retrieval_chain(retriever, document_chain)
 # question = "give me details about Technology tree of RAG research in tree formate"
 # question = "explain me representative instance of the RAG process applied to question answering in details with diagram"
 # question = "give me Comparison between the three paradigms of RAG."
-question = "give me in table SUMMARY OF RAG METHODS"
+
+# question = "give me details about Retrieval Source in table format"
+# question = "give me sub task, dataset and method for task QA"
+# question = "give me table for Context Relevance, Faithfulness, Answer Relevance, Noise Robustness,Negative Rejection, Information Integration, Counterfactual Robustness"
+# question = "give me table for Dialog in colums Sub Task, Dataset, Method"
+# question = "give me details about 2312.table.pdf what it contains"
+# question = "give me details about ELIGIBILITY CRITERIA in table format"
+question = "Process Overview - Key Steps NON-OTC"
+# question = "explain me PROCESS FLOW (Branch Operations)"
+
 response = rag_chain.invoke({"input": question})
 
 

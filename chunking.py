@@ -242,6 +242,7 @@ def create_semantic_chunks(chunks):
         List of semantic chunks
     """
     from unstructured.documents.elements import CompositeElement
+    from langchain_core.documents import Document
 
     # Convert to more usable format
     processed_chunks = []
@@ -258,7 +259,12 @@ def create_semantic_chunks(chunks):
                         chunk, "metadata") else ""
                 ),
             }
-            processed_chunks.append(chunk_data)
+            new_chunk = Document(
+                page_content=chunk_data["content"], metadata={
+                    "source": chunk_data["filename"], "type": chunk_data["content_type"], }
+            )
+            # processed_chunks.append(chunk_data)
+            processed_chunks.append(new_chunk)
 
     print(f"Created {len(processed_chunks)} semantic chunks from document")
     return processed_chunks
